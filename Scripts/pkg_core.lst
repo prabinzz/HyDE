@@ -37,6 +37,7 @@ slurp                                                  # region select for scree
 satty                                                  # Modern Screenshot Annotation
 cliphist                                               # clipboard manager
 hyprsunset                                             # blue light filter
+tmux						       # terminal session manager
 
 # --------------------------------------------------- // Dependencies
 polkit-gnome                                           # authentication agent
