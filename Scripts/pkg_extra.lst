@@ -51,6 +51,11 @@ swaylock-effects-git                                   # swaylock with effects /
 # --------------------------------------------------- // OSD
 swayosd-git                                             #A GTK based on screen display for keyboard shortcuts like caps-lock and volume
 
-# customs
+## customs
+
+# power management
 tlp
 powertop
+# hotspot essentioal 
+ptables
+linux-wifi-hotspot
