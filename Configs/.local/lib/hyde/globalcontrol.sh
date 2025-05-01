@@ -35,7 +35,44 @@ get_hashmap() {
     unset wallHash
     unset wallList
     unset skipStrays
-    unset verboseMap
+    unset filetypes
+
+    list_extensions() {
+        # Define supported file extensions
+        supported_files=(
+            "gif"
+            "jpg"
+            "jpeg"
+            "png"
+            "${WALLPAPER_FILETYPES[@]}"
+        )
+        if [ -n "${WALLPAPER_OVERRIDE_FILETYPES}" ]; then
+            supported_files=("${WALLPAPER_OVERRIDE_FILETYPES[@]}")
+        fi
+
+        printf -- "-iname \"*.%s\" -o " "${supported_files[@]}" | sed 's/ -o $//'
+
+    }
+
+    find_wallpapers() {
+        local wallSource="$1"
+
+        if [ -z "${wallSource}" ]; then
+            print_log -err "ERROR: wallSource is empty"
+            return 1
+        fi
+
+        local find_command
+        find_command="find \"${wallSource}\" -type f \\( $(list_extensions) \\) ! -path \"*/logo/*\" -exec \"${hashMech}\" {} +"
+
+        [ "${LOG_LEVEL}" == "debug" ] && print_log -g "DEBUG:" -b "Running command:" "${find_command}"
+
+        tmpfile=$(mktemp)
+        eval "${find_command}" 2>"$tmpfile" | sort -k2
+        error_output=$(<"$tmpfile") && rm -f "$tmpfile"
+        [ -n "${error_output}" ] && print_log -err "ERROR:" -b "found an error: " -r "${error_output}" -y " skipping..."
+
+    }
 
     for wallSource in "$@"; do
 
@@ -54,38 +91,6 @@ get_hashmap() {
         }
 
         [ "${LOG_LEVEL}" == "debug" ] && print_log -g "DEBUG:" -b "wallSource path:" "${wallSource}"
-
-        list_extensions() {
-            # Define supported file extensions
-            supported_files=(
-                "gif"
-                "jpg"
-                "jpeg"
-                "png"
-                "${WALLPAPER_FILETYPES[@]}"
-            )
-            printf -- "-iname *.%s -o " "${supported_files[@]}" | sed 's/ -o $//'
-        }
-
-        find_wallpapers() {
-            local wallSource="$1"
-
-            if [ -z "${wallSource}" ]; then
-                print_log -err "ERROR: wallSource is empty"
-                return 1
-            fi
-
-            local find_command
-            find_command="find \"${wallSource}\" -type f \\( $(list_extensions) \\) ! -path \"*/logo/*\" -exec \"${hashMech}\" {} +"
-
-            [ "${LOG_LEVEL}" == "debug" ] && print_log -g "DEBUG:" -b "Running command:" "${find_command}"
-
-            tmpfile=$(mktemp)
-            eval "${find_command}" 2>"$tmpfile" | sort -k2
-            error_output=$(<"$tmpfile") && rm -f "$tmpfile"
-            [ -n "${error_output}" ] && print_log -err "ERROR:" -b "found an error: " -r "${error_output}" -y " skipping..."
-
-        }
 
         hashMap=$(find_wallpapers "${wallSource}") # Enable debug mode for testing
 
@@ -337,6 +342,22 @@ check_package() {
 get_hyprConf() {
     local hyVar="${1}"
     local file="${2:-"$HYDE_THEME_DIR/hypr.theme"}"
+
+    # First try using hyq for fast config parsing if available
+    if command -v hyq &>/dev/null; then
+        local hyq_result
+        # Try with source option for accurate results
+        hyq_result=$(hyq -s --query "\$${hyVar}" "${file}" 2>/dev/null)
+        # If empty, try without source option
+        if [ -z "${hyq_result}" ]; then
+            hyq_result=$(hyq --query "\$${hyVar}" "${file}" 2>/dev/null)
+        fi
+        # Return result if not empty
+        [ -n "${hyq_result}" ] && echo "${hyq_result}" && return 0
+
+    fi
+
+    # Fall back to traditional parsing if hyq fails or isn't available
     local gsVal
     gsVal="$(grep "^[[:space:]]*\$${hyVar}\s*=" "${file}" | cut -d '=' -f2 | sed 's/^[[:space:]]*//;s/[[:space:]]*$//')"
     [ -n "${gsVal}" ] && [[ "${gsVal}" != \$* ]] && echo "${gsVal}" && return 0
