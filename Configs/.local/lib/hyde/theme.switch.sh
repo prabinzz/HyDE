@@ -240,3 +240,7 @@ if [ "$quiet" = true ]; then
 else
   "${scrDir}/wallpaper.sh" -s "$(readlink "${HYDE_THEME_DIR}/wall.set")" --global
 fi
+
+# Update tmux theme when changing Hyprland theme
+# Add this to any keybind or script that changes your theme
+exec ~/.config/hypr/scripts/tmux-theme.sh
