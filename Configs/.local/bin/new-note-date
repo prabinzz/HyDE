@@ -1,0 +1,11 @@
+#!/bin/bash
+
+term=$TERM
+echo "Current terminal: $term"
+
+if [ "$term" = "xterm-kitty" ]; then
+  kitty --title kitty-float-notes -e nvim ~/scratchpatch/$(date +%Y%m%d_%H%M%S).txt
+
+else
+  echo "No matching terminal"
+fi

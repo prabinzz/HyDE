@@ -1,0 +1,29 @@
+#!/bin/bash
+
+NOTES_DIR="$HOME/notes"
+DATE=$(date +%Y-%m-%d)
+TIME=$(date +%H:%M)
+DAILY_NOTE="$NOTES_DIR/daily/$DATE.md"
+
+# Create daily note if it doesn't exist
+if [ ! -f "$DAILY_NOTE" ]; then
+    cat > "$DAILY_NOTE" << EOF
+# Notes for $DATE
+
+## Quick Captures
+
+## Tasks
+- [ ] 
+
+## Ideas
+
+## References
+
+---
+EOF
+fi
+
+# Open in floating terminal with Neovim
+kitty --class floating-notes \
+    --title "Quick Notes" \
+    -e nvim "+ normal Gzzo## $TIME" "$DAILY_NOTE"

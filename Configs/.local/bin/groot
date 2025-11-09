@@ -1,0 +1,65 @@
+#!/bin/sh
+# Run any GUI app as root, safely on Wayland or X11, using current user's environment.
+# Usage: pkexec /usr/local/bin/gui-as-root <command> [args...]
+
+# Redirect all errors to a log file
+exec 2>>/tmp/groot.log
+echo "=== groot started at $(date) ===" >&2
+
+# Exit on any error
+set -eu
+
+if [ $# -eq 0 ]; then
+    echo "Usage: $0 <command> [args...]" >&2
+    exit 1
+fi
+
+# Detect the real user ID (not root) from the session
+REAL_UID=$(loginctl list-sessions --no-legend | awk '{print $1}' | while read -r session; do
+    active=$(loginctl show-session "$session" -p Active --value 2>/dev/null)
+    [ "$active" = "yes" ] || continue
+    uid=$(loginctl show-session "$session" -p User --value 2>/dev/null)
+    echo "$uid"
+    break
+done)
+
+# Fallback to SUDO_USER if loginctl fails
+if [ -z "${REAL_UID:-}" ] && [ -n "${SUDO_USER:-}" ]; then
+    REAL_UID=$(id -u "$SUDO_USER")
+fi
+
+# Better fallback: use PKEXEC_UID
+if [ -z "${REAL_UID:-}" ] && [ -n "${PKEXEC_UID:-}" ]; then
+    REAL_UID="$PKEXEC_UID"
+fi
+
+if [ -z "${REAL_UID:-}" ]; then
+    echo "Could not determine non-root user session." >&2
+    exit 1
+fi
+
+echo "REAL_UID: $REAL_UID" >&2
+
+# Set user-related environment variables
+export XDG_RUNTIME_DIR="/run/user/$REAL_UID"
+
+# Try to extract environment from a user process (Wayland/X11)
+ENVFILE=$(find /proc/*/environ -user "$REAL_UID" 2>/dev/null | head -n 1)
+
+if [ -r "$ENVFILE" ]; then
+    export DISPLAY=$(tr '\0' '\n' < "$ENVFILE" | grep '^DISPLAY=' | cut -d= -f2- | head -n1 || echo ":0")
+    export WAYLAND_DISPLAY=$(tr '\0' '\n' < "$ENVFILE" | grep '^WAYLAND_DISPLAY=' | cut -d= -f2- | head -n1 || echo "wayland-0")
+    export XAUTHORITY=$(tr '\0' '\n' < "$ENVFILE" | grep '^XAUTHORITY=' | cut -d= -f2- | head -n1 || echo "/home/$(id -un "$REAL_UID")/.Xauthority")
+else
+    export DISPLAY=${DISPLAY:-:0}
+    export WAYLAND_DISPLAY=${WAYLAND_DISPLAY:-wayland-0}
+    export XAUTHORITY=${XAUTHORITY:-/home/$(id -un "$REAL_UID")/.Xauthority}
+fi
+
+echo "DISPLAY: $DISPLAY" >&2
+echo "WAYLAND_DISPLAY: $WAYLAND_DISPLAY" >&2
+echo "XAUTHORITY: $XAUTHORITY" >&2
+echo "Running: $*" >&2
+
+# Run the command (also redirect its output to the log)
+exec "$@" 2>&1 | tee -a /tmp/groot.log

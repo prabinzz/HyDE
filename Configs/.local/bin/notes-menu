@@ -1,0 +1,67 @@
+#!/bin/bash
+
+NOTES_DIR="$HOME/notes"
+
+# Check which launcher is available
+if command -v wofi &>/dev/null; then
+  LAUNCHER="wofi --dmenu -i -p"
+elif command -v rofi &>/dev/null; then
+  LAUNCHER="rofi -dmenu -i -p"
+else
+  notify-send "Error" "Neither wofi nor rofi is installed"
+  exit 1
+fi
+
+# Use the launcher to select note type
+NOTE_TYPE=$(printf "Daily Note\nNew Idea\nNew Project\nSearch Notes\nBrowse Notes" | $LAUNCHER "Notes")
+
+case "$NOTE_TYPE" in
+"Daily Note")
+  ~/.local/bin/quick-note
+  ;;
+"New Idea")
+  FILENAME="$NOTES_DIR/ideas/$(date +%Y%m%d-%H%M%S).md"
+  kitty --class floating-notes -e nvim "$FILENAME"
+  ;;
+"New Project")
+  PROJECT_NAME=$($LAUNCHER "Project name" </dev/null)
+  if [ -n "$PROJECT_NAME" ]; then
+    FILENAME="$NOTES_DIR/projects/${PROJECT_NAME// /-}.md"
+    cat >"$FILENAME" <<EOF
+# $PROJECT_NAME
+
+**Created:** $(date +%Y-%m-%d)
+
+## Overview
+
+## Goals
+
+## Tasks
+- [ ] 
+
+## Notes
+
+EOF
+    kitty --class floating-notes -e nvim "$FILENAME"
+  fi
+  ;;
+"Search Notes")
+  # Check if fd is installed, fallback to find
+  if command -v fd &>/dev/null; then
+    SELECTED=$(fd . "$NOTES_DIR" -t f -e md -x basename {} | $LAUNCHER "Open note")
+    if [ -n "$SELECTED" ]; then
+      FULL_PATH=$(fd "$SELECTED" "$NOTES_DIR" -t f -e md | head -n1)
+      kitty --class floating-notes -e nvim "$FULL_PATH"
+    fi
+  else
+    SELECTED=$(find "$NOTES_DIR" -type f -name "*.md" -printf "%f\n" | $LAUNCHER "Open note")
+    if [ -n "$SELECTED" ]; then
+      FULL_PATH=$(find "$NOTES_DIR" -type f -name "$SELECTED" | head -n1)
+      kitty --class floating-notes -e nvim "$FULL_PATH"
+    fi
+  fi
+  ;;
+"Browse Notes")
+  kitty --class floating-notes -e nvim "$NOTES_DIR"
+  ;;
+esac

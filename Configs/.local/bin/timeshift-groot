@@ -1,0 +1,16 @@
+#!/bin/zsh
+
+# Capture environment before pkexec strips it
+MYUID=$(id -u)
+MYDISPLAY="$DISPLAY"
+MYWAYLAND="$WAYLAND_DISPLAY"
+MYXAUTH="$XAUTHORITY"
+MYXDG="/run/user/$MYUID"
+
+# Run with pkexec, passing environment explicitly
+pkexec env \
+    DISPLAY="$MYDISPLAY" \
+    WAYLAND_DISPLAY="$MYWAYLAND" \
+    XAUTHORITY="$MYXAUTH" \
+    XDG_RUNTIME_DIR="$MYXDG" \
+    timeshift-gtk

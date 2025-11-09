@@ -1,0 +1,128 @@
+#!/bin/bash
+# Tmux Sessionizer - Fuzzy find and switch between project sessions
+# Usage: Run this script from anywhere, select a folder, and it will create/switch to that session
+
+# ============================================
+# Configuration - Add your directories here
+# ============================================
+SEARCH_PATHS=(
+    "$HOME/.config"
+    "$HOME"
+    "$HOME/personal"
+    "$HOME/school"
+    "$HOME/projects"
+    "$HOME/work"
+    "$HOME/Documents"
+)
+
+# Maximum depth to search (1 = direct children only, 2 = grandchildren, etc.)
+MAX_DEPTH=1
+
+# ============================================
+# Functions
+# ============================================
+
+chgck_dependencies() {
+    local missing_deps=()
+
+  if ! command -v fzf &>/dev/null; then
+      missing_deps+=("fzf")
+  fi
+
+  if ! command -v tmux &>/dev/null; then
+      missing_deps+=("tmux")
+  fi
+
+  if [ ${#missing_deps[@]} -ne 0 ]; then
+  echo "❌ Missing required dependencies: ${missing_deps[*]}"
+  echo ""
+  echo "Install them with:"
+  echo "  Ubuntu/Debian: sudo apt install ${missing_deps[*]}"
+  echo "  macOS: brew install ${missing_deps[*]}"
+  echo "  Fedora: sudo dnf install ${missing_deps[*]}"
+  exit 1
+  fi
+}
+
+find_directories() {
+    local dirs=()
+
+  # Find all directories in search paths (including hidden)
+  for path in "${SEARCH_PATHS[@]}"; do
+      if [ -d "$path" ]; then
+          # Add the base directory itself
+          dirs+=("$path")
+
+      # Find subdirectories up to MAX_DEPTH (including hidden folders)
+      while IFS= read -r dir; do
+          dirs+=("$dir")
+      done < <(find "$path" -mindepth 1 -maxdepth "$MAX_DEPTH" -type d 2>/dev/null)
+      fi
+  done
+
+  # Remove duplicates and sort
+  printf '%s\n' "${dirs[@]}" | sort -u
+}
+
+create_session_name() {
+    local dir="$1"
+    # Replace dots and slashes with underscores, remove special chars
+    local session_name=$(basename "$dir" | tr '.' '_' | tr ' ' '_' | sed 's/[^a-zA-Z0-9_-]//g')
+    echo "$session_name"
+}
+
+sessionize() {
+    local selected_dir="$1"
+
+  if [ -z "$selected_dir" ]; then
+      exit 0
+  fi
+
+  local session_name=$(create_session_name "$selected_dir")
+
+  # Check if we're inside tmux
+  if [ -z "$TMUX" ]; then
+      # Not in tmux, create or attach to session
+      if tmux has-session -t="$session_name" 2>/dev/null; then
+          echo "📂 Attaching to existing session: $session_name"
+          tmux attach-session -t "$session_name"
+      else
+          echo "✨ Creating new session: $session_name"
+          tmux new-session -s "$session_name" -c "$selected_dir"
+      fi
+  else
+      # Inside tmux, switch or create session
+      if ! tmux has-session -t="$session_name" 2>/dev/null; then
+          echo "✨ Creating new session: $session_name"
+          tmux new-session -ds "$session_name" -c "$selected_dir"
+      fi
+      echo "🔄 Switching to session: $session_name"
+      tmux switch-client -t "$session_name"
+  fi
+}
+
+# ============================================
+# Main Script
+# ============================================
+
+main() {
+    # Check if required tools are installed
+    check_dependencies
+
+  # Find all directories and let user select with fzf
+  local selected=$(find_directories | fzf \
+  --prompt="📁 Select project directory: " \
+  --height=50% \
+  --layout=reverse \
+  --border \
+  --color='fg:#cdd6f4,bg:#1e1e2e,hl:#f38ba8' \
+  --color='fg+:#cdd6f4,bg+:#313244,hl+:#f38ba8' \
+  --color='info:#cba6f7,prompt:#cba6f7,pointer:#f5e0dc' \
+  --color='marker:#f5e0dc,spinner:#f5e0dc,header:#94e2d5')
+
+  # Sessionize the selected directory
+  sessionize "$selected"
+}
+
+# Run main function
+main
