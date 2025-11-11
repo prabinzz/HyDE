@@ -15,6 +15,7 @@ Multi-language README support
 <!-- ALL-CONTRIBUTORS-BADGE:START - Do not remove or modify this section -->
 [![All Contributors](https://img.shields.io/badge/all_contributors-2-orange.svg?style=flat-square)](#contributors-)
 <!-- ALL-CONTRIBUTORS-BADGE:END -->
+[![TruffleHog OSS](https://img.shields.io/badge/trufflehog-scanned-blueviolet)](https://github.com/trufflesecurity/trufflehog)
 [![es](https://img.shields.io/badge/lang-es-yellow.svg)](Source/docs/README.es.md)
 [![de](https://img.shields.io/badge/lang-de-black.svg)](Source/docs/README.de.md)
 [![nl](https://img.shields.io/badge/lang-nl-green.svg)](Source/docs/README.nl.md)
