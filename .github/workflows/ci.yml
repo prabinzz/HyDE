@@ -271,6 +271,22 @@ jobs:
           echo "::notice::No new commits detected between master and rc branches. Skipping PR creation."
           echo "The branches master and rc are already in sync."
 
+  secret-scan:
+    name: Secret Scan
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          fetch-depth: 0
+      - name: TruffleHog OSS
+        uses: trufflesecurity/trufflehog@main
+        with:
+          path: ./
+          base: .
+          head: HEAD
+          extra_args: --debug --only-verified
+
   release:
     name: Quarterly Snapshot Release
     if: github.ref == 'refs/heads/master' && github.repository == 'HyDE-Project/HyDE'
@@ -335,8 +351,8 @@ jobs:
               per_page: 2
             });
 
-            const previousTag = allReleases.data.length > 1 ? 
-              allReleases.data[1].tag_name : 
+            const previousTag = allReleases.data.length > 1 ?
+              allReleases.data[1].tag_name :
               'HEAD~20'; // Fallback to last 20 commits if no previous release
 
             // Get commits between the two tags
@@ -355,15 +371,15 @@ jobs:
             const features = commitList.split('\n')
               .filter(line => line.includes('feat:') || line.includes('feat('))
               .join('\n');
-              
+
             const fixes = commitList.split('\n')
               .filter(line => line.includes('fix:') || line.includes('fix('))
               .join('\n');
-              
+
             const docs = commitList.split('\n')
               .filter(line => line.includes('docs:') || line.includes('docs('))
               .join('\n');
-              
+
             const other = commitList.split('\n')
               .filter(line => !line.includes('feat:') && !line.includes('fix:') && !line.includes('docs:') &&
                              !line.includes('feat(') && !line.includes('fix(') && !line.includes('docs('))
